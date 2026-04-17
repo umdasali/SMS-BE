@@ -31,7 +31,8 @@ console.log(configuredOrigins, 'before')
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://10.222.209.148:3000'
+  'http://10.222.209.148:3000',
+  'https://sms-fe-tfn8.vercel.app'
 ];
 
 app.use(
