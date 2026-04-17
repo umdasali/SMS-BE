@@ -24,8 +24,14 @@ const seedSaasAdmin = async (): Promise<void> => {
 
 // Vercel invokes this as a serverless function — connect on cold start
 const handler = async (req: any, res: any) => {
-  await connectDB();
-  await seedSaasAdmin();
+  try {
+    await connectDB();
+    await seedSaasAdmin();
+  } catch (err) {
+    console.error('Startup error:', err);
+    res.status(500).json({ success: false, message: 'Server initialization failed' });
+    return;
+  }
   return app(req, res);
 };
 
