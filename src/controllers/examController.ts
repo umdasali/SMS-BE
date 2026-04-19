@@ -3,7 +3,12 @@ import Exam from '../models/Exam';
 import Mark from '../models/Mark';
 import Student from '../models/Student';
 import Subject from '../models/Subject';
+import Teacher from '../models/Teacher';
 import { sendSuccess, sendError } from '../utils/response';
+
+async function getTeacherProfile(tenantId: string, userId: string) {
+  return Teacher.findOne({ tenantId, userId }).select('classIds subjectIds').lean();
+}
 
 export const getExams = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -12,6 +17,12 @@ export const getExams = async (req: Request, res: Response): Promise<void> => {
     if (classId) filter['classId'] = classId;
     if (academicYear) filter['academicYear'] = academicYear;
     if (search) filter['name'] = { $regex: search, $options: 'i' };
+
+    if (req.user?.role === 'teacher') {
+      const teacher = await getTeacherProfile(req.tenantId!, req.user._id.toString());
+      if (!teacher) { sendError(res, 'Teacher profile not found', 404); return; }
+      filter['classId'] = { $in: teacher.classIds };
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [exams, total] = await Promise.all([
@@ -48,7 +59,8 @@ export const updateExam = async (req: Request, res: Response): Promise<void> => 
 
 export const deleteExam = async (req: Request, res: Response): Promise<void> => {
   try {
-    await Exam.findOneAndDelete({ _id: req.params['id'], tenantId: req.tenantId });
+    const exam = await Exam.findOneAndDelete({ _id: req.params['id'], tenantId: req.tenantId });
+    if (!exam) { sendError(res, 'Exam not found', 404); return; }
     sendSuccess(res, null, 'Exam deleted');
   } catch (err) {
     sendError(res, 'Failed to delete exam', 500, err);
@@ -62,6 +74,26 @@ export const bulkSaveMarks = async (req: Request, res: Response): Promise<void> 
       examId: string;
       marks: Array<{ studentId: string; subjectId: string; obtained: number; total: number; remarks?: string }>;
     };
+
+    if (req.user?.role === 'teacher') {
+      const [teacher, exam] = await Promise.all([
+        getTeacherProfile(req.tenantId!, req.user._id.toString()),
+        Exam.findOne({ _id: examId, tenantId: req.tenantId }).select('classId').lean(),
+      ]);
+      if (!teacher) { sendError(res, 'Teacher profile not found', 404); return; }
+      if (!exam) { sendError(res, 'Exam not found', 404); return; }
+
+      const allowedClasses = teacher.classIds.map(id => id.toString());
+      if (!allowedClasses.includes(exam.classId.toString())) {
+        sendError(res, 'You are not assigned to this exam\'s class', 403); return;
+      }
+
+      const allowedSubjects = new Set(teacher.subjectIds.map(id => id.toString()));
+      const unauthorizedSubject = marks.find(m => !allowedSubjects.has(m.subjectId));
+      if (unauthorizedSubject) {
+        sendError(res, 'You are not assigned to enter marks for one or more subjects', 403); return;
+      }
+    }
 
     const ops = marks.map((m) => ({
       updateOne: {

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 import User from '../models/User';
+import Tenant from '../models/Tenant';
 import { sendError } from '../utils/response';
 
 export const protect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -27,8 +28,35 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     }
 
     req.user = user;
-    // Set tenantId for multi-tenancy filters. saas_admin may not have one.
     req.tenantId = user.tenantId?.toString();
+
+    // For tenant users (not saas_admin), enforce institution status and subscription.
+    if (user.role !== 'saas_admin' && user.tenantId) {
+      const tenant = await Tenant.findById(user.tenantId)
+        .select('status subscription')
+        .lean();
+
+      if (!tenant) {
+        sendError(res, 'Institution not found.', 403);
+        return;
+      }
+
+      if (tenant.status === 'inactive') {
+        sendError(res, 'Your institution account has been suspended. Please contact support.', 403);
+        return;
+      }
+
+      if (tenant.subscription?.status === 'suspended') {
+        sendError(res, 'Your institution subscription has been suspended due to non-payment. Please contact the administrator.', 403);
+        return;
+      }
+
+      if (tenant.subscription?.expiresAt && new Date() > new Date(tenant.subscription.expiresAt)) {
+        sendError(res, 'Your institution subscription has expired. Please contact the administrator to renew.', 403);
+        return;
+      }
+    }
+
     next();
   } catch {
     sendError(res, 'Not authorized. Invalid token.', 401);

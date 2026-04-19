@@ -101,7 +101,7 @@ export const updateTeacher = async (req: Request, res: Response): Promise<void> 
       { _id: req.params['id'], tenantId: req.tenantId },
       data,
       { new: true, runValidators: true }
-    );
+    ).populate('subjectIds', 'name code').populate('classIds', 'name');
     if (!teacher) { sendError(res, 'Teacher not found', 404); return; }
     sendSuccess(res, teacher, 'Teacher updated');
   } catch (err) {

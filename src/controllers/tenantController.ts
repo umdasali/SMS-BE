@@ -36,7 +36,6 @@ export const updateTenant = async (req: Request, res: Response): Promise<void> =
 export const updateBranding = async (req: Request, res: Response): Promise<void> => {
   try {
     const { primaryColor, schoolName, marksheetTemplate, certificateTemplate } = req.body as any;
-    console.log('Update Branding Request:', { primaryColor, schoolName, marksheetTemplate, certificateTemplate });
     const tenantId = req.params['id'] || req.tenantId;
     const tenant = await Tenant.findById(tenantId);
     if (!tenant) { sendError(res, 'Tenant not found', 404); return; }
@@ -47,9 +46,7 @@ export const updateBranding = async (req: Request, res: Response): Promise<void>
     if (certificateTemplate) tenant.branding.certificateTemplate = certificateTemplate;
 
     tenant.markModified('branding');
-    console.log('Tenant branding before save:', tenant.branding);
 
-    // Handle uploaded files
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     if (files?.['logo']?.[0]) {
       tenant.branding.logo = (files['logo'][0] as unknown as { path: string }).path;
@@ -59,7 +56,6 @@ export const updateBranding = async (req: Request, res: Response): Promise<void>
     }
 
     await tenant.save();
-    console.log('Tenant branding after save:', tenant.branding);
     sendSuccess(res, tenant, 'Branding updated');
   } catch (err) {
     sendError(res, 'Failed to update branding', 500, err);
@@ -109,5 +105,45 @@ export const getTenantStats = async (req: Request, res: Response): Promise<void>
     sendSuccess(res, { students, teachers, classes, exams, totalFeesCollected }, 'Tenant stats fetched');
   } catch (err) {
     sendError(res, 'Failed to fetch tenant stats', 500, err);
+  }
+};
+
+/**
+ * SaaS admin–only: update subscription plan, status, expiry, pricing, and notes.
+ * Activating resets lastPaymentDate to now.
+ */
+export const updateSubscription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenant = await Tenant.findById(req.params['id']);
+    if (!tenant) { sendError(res, 'Tenant not found', 404); return; }
+
+    const {
+      plan, status, expiresAt, pricePerStudent, notes,
+    } = req.body as {
+      plan?: 'free' | 'basic' | 'pro' | 'enterprise';
+      status?: 'active' | 'suspended' | 'expired';
+      expiresAt?: string;
+      pricePerStudent?: number;
+      notes?: string;
+    };
+
+    if (plan) tenant.subscription.plan = plan;
+    if (status) {
+      tenant.subscription.status = status;
+      // Restore institution access when admin explicitly activates
+      if (status === 'active') {
+        tenant.subscription.lastPaymentDate = new Date();
+        if (tenant.status === 'inactive') tenant.status = 'active';
+      }
+    }
+    if (expiresAt) tenant.subscription.expiresAt = new Date(expiresAt);
+    if (pricePerStudent !== undefined) tenant.subscription.pricePerStudent = pricePerStudent;
+    if (notes !== undefined) tenant.subscription.notes = notes;
+
+    tenant.markModified('subscription');
+    await tenant.save();
+    sendSuccess(res, tenant, 'Subscription updated');
+  } catch (err) {
+    sendError(res, 'Failed to update subscription', 500, err);
   }
 };
