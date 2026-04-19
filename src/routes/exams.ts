@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getExams, createExam, updateExam, deleteExam,
+  getExams, getExam, createExam, updateExam, deleteExam,
   bulkSaveMarks, getStudentMarks, getExamMarks, getExamMarksByQuery,
 } from '../controllers/examController';
 import { protect, authorize } from '../middleware/auth';
@@ -13,10 +13,11 @@ router.post('/', authorize('saas_admin', 'management'), createExam);
 router.put('/:id', authorize('saas_admin', 'management'), updateExam);
 router.delete('/:id', authorize('saas_admin', 'management'), deleteExam);
 
-// Marks
+// Marks — must be registered before /:id to avoid /marks being caught as an id
 router.get('/marks', authorize('saas_admin', 'management', 'teacher'), getExamMarksByQuery);
 router.post('/marks/bulk', authorize('saas_admin', 'management', 'teacher'), bulkSaveMarks);
-router.get('/marks/student/:id', getStudentMarks);
+router.get('/marks/student/:id', authorize('saas_admin', 'management', 'teacher', 'student'), getStudentMarks);
 router.get('/:id/marks', authorize('saas_admin', 'management', 'teacher'), getExamMarks);
+router.get('/:id', getExam);
 
 export default router;

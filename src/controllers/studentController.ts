@@ -133,6 +133,29 @@ export const getMyStudentProfile = async (req: Request, res: Response): Promise<
   }
 };
 
+export const updateStudentStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body as { status: string };
+    const valid = ['active', 'inactive', 'graduated', 'transferred'];
+    if (!valid.includes(status)) { sendError(res, 'Invalid status value', 400); return; }
+
+    const student = await Student.findOneAndUpdate(
+      { _id: req.params['id'], tenantId: req.tenantId },
+      { status },
+      { new: true }
+    );
+    if (!student) { sendError(res, 'Student not found', 404); return; }
+
+    if (student.userId) {
+      await User.findByIdAndUpdate(student.userId, { isActive: status === 'active' });
+    }
+
+    sendSuccess(res, student, `Student marked as ${status}`);
+  } catch (err) {
+    sendError(res, 'Failed to update student status', 500, err);
+  }
+};
+
 export const updateStudentPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { password } = req.body as { password?: string };

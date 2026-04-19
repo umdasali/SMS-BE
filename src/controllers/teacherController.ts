@@ -132,6 +132,29 @@ export const getMyTeacherProfile = async (req: Request, res: Response): Promise<
   }
 };
 
+export const updateTeacherStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body as { status: string };
+    const valid = ['active', 'inactive'];
+    if (!valid.includes(status)) { sendError(res, 'Invalid status value', 400); return; }
+
+    const teacher = await Teacher.findOneAndUpdate(
+      { _id: req.params['id'], tenantId: req.tenantId },
+      { status },
+      { new: true }
+    );
+    if (!teacher) { sendError(res, 'Teacher not found', 404); return; }
+
+    if (teacher.userId) {
+      await User.findByIdAndUpdate(teacher.userId, { isActive: status === 'active' });
+    }
+
+    sendSuccess(res, teacher, `Teacher marked as ${status}`);
+  } catch (err) {
+    sendError(res, 'Failed to update teacher status', 500, err);
+  }
+};
+
 export const updateTeacherPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { password } = req.body as { password?: string };

@@ -23,7 +23,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       Class.countDocuments({ tenantId }),
       Student.countDocuments({ tenantId, status: 'active' }),
       Attendance.findOne({ tenantId, date: { $gte: today, $lt: tomorrow } }),
-      Exam.find({ tenantId, startDate: { $gte: today } }).limit(5).sort({ startDate: 1 }),
+      Exam.find({ tenantId, startDate: { $gte: today } }).populate('classId', 'name').limit(10).sort({ startDate: 1 }),
     ]);
 
     // Today's attendance percentage
@@ -44,15 +44,18 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       return d;
     }).reverse();
 
+    const toLocalDateStr = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     const trendData = await Promise.all(
       last7Days.map(async (day) => {
         const next = new Date(day);
         next.setDate(next.getDate() + 1);
         const att = await Attendance.findOne({ tenantId, date: { $gte: day, $lt: next } });
-        if (!att) return { date: day.toISOString().split('T')[0], percentage: 0 };
+        if (!att) return { date: toLocalDateStr(day), percentage: 0 };
         const present = att.records.filter((r) => r.status === 'present').length;
         const pct = att.records.length > 0 ? Math.round((present / att.records.length) * 100) : 0;
-        return { date: day.toISOString().split('T')[0], percentage: pct };
+        return { date: toLocalDateStr(day), percentage: pct };
       })
     );
 

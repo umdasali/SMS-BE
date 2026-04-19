@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getStudents, createStudent, getStudent, updateStudent,
-  deleteStudent, getMyStudentProfile, updateStudentPassword,
+  deleteStudent, getMyStudentProfile, updateStudentPassword, updateStudentStatus,
 } from '../controllers/studentController';
 import { protect, authorize } from '../middleware/auth';
 import { upload } from '../utils/cloudinary';
@@ -15,6 +15,7 @@ router.get('/', authorize('saas_admin', 'management', 'teacher'), getStudents);
 router.post('/', authorize('saas_admin', 'management'), upload.single('photo'), createStudent);
 router.get('/:id', authorize('saas_admin', 'management'), getStudent);
 router.put('/:id', authorize('saas_admin', 'management'), upload.single('photo'), updateStudent);
+router.patch('/:id/status', authorize('saas_admin', 'management'), updateStudentStatus);
 router.put('/:id/password', authorize('saas_admin', 'management'), updateStudentPassword);
 router.delete('/:id', authorize('saas_admin', 'management'), deleteStudent);
 

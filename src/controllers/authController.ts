@@ -44,7 +44,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
-    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
     res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     sendSuccess(res, { user, accessToken }, 'Login successful');
@@ -77,7 +77,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     user.refreshToken = newRefreshToken;
     await user.save({ validateBeforeSave: false });
 
-    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
     res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     sendSuccess(res, { accessToken }, 'Token refreshed');
