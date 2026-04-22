@@ -14,7 +14,8 @@ const seedSaasAdmin = async (): Promise<void> => {
 
   const exists = await User.findOne({ email, role: 'saas_admin' });
   if (!exists) {
-    await User.create({ name, email, password, role: 'saas_admin', isActive: true });
+    const username = email.split('@')[0];
+    await User.create({ name, email, username, password, role: 'saas_admin', isActive: true });
     console.log(`✅ SaaS Admin seeded: ${email}`);
   }
 };

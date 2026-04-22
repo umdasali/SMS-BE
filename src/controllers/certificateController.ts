@@ -28,7 +28,7 @@ export const getCertificates = async (req: Request, res: Response): Promise<void
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [certs, total] = await Promise.all([
       Certificate.find(filter)
-        .populate('studentId', 'name admissionNo classId')
+        .populate({ path: 'studentId', select: 'name admissionNo classId', populate: { path: 'classId', select: 'name' } })
         .populate('issuedBy', 'name')
         .skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 }),
       Certificate.countDocuments(filter)
@@ -66,7 +66,7 @@ export const generateCertificate = async (req: Request, res: Response): Promise<
       serialNo,
     });
 
-    const populated = await certificate.populate('studentId', 'name admissionNo classId');
+    const populated = await certificate.populate({ path: 'studentId', select: 'name admissionNo classId', populate: { path: 'classId', select: 'name' } });
     sendSuccess(res, populated, 'Certificate generated', 201);
   } catch (err) {
     sendError(res, 'Failed to generate certificate', 500, err);
@@ -91,7 +91,7 @@ export const getStudentCertificates = async (req: Request, res: Response): Promi
 export const getCertificate = async (req: Request, res: Response): Promise<void> => {
   try {
     const cert = await Certificate.findOne({ _id: req.params['id'], tenantId: req.tenantId })
-      .populate('studentId', 'name admissionNo classId dob')
+      .populate({ path: 'studentId', select: 'name admissionNo classId dob', populate: { path: 'classId', select: 'name' } })
       .populate('issuedBy', 'name designation');
     if (!cert) { sendError(res, 'Certificate not found', 404); return; }
     sendSuccess(res, cert, 'Certificate fetched');
