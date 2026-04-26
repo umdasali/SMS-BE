@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { errorHandler } from './middleware/errorHandler';
@@ -21,31 +22,32 @@ import financeRoutes from './routes/finance';
 import publicRoutes from './routes/public';
 
 const app = express();
-const configuredOrigins = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-// const allowedOrigins = new Set(configuredOrigins);
-// const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-console.log(configuredOrigins, 'before')
+// Build allowed origins from env var (comma-separated).
+// In development, always allow localhost variants.
+const envOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const devOrigins =
+  process.env.NODE_ENV !== 'production'
+    ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+    : [];
+
+const allowedOrigins = Array.from(new Set([...devOrigins, ...envOrigins]));
+
 // Security middleware
-// app.use(helmet());
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://10.222.209.148:3000',
-  'https://sms-fe-tfn8.vercel.app'
-];
+app.use(helmet());
 
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-    // methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    // allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-// app.options('/', cors());
-
-console.log(configuredOrigins, 'after')
 
 // Body & cookie parsing
 app.use(express.json({ limit: '10mb' }));
