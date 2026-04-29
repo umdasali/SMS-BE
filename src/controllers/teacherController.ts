@@ -15,7 +15,7 @@ const generateEmployeeId = async (tenantId: string): Promise<string> => {
 
 export const getTeachers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, search, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { status, search, designation, gender, page = '1', limit = '20' } = req.query as Record<string, string>;
     const filter: Record<string, any> = {};
     if (req.user?.role !== 'saas_admin') {
       filter.tenantId = req.tenantId;
@@ -23,7 +23,16 @@ export const getTeachers = async (req: Request, res: Response): Promise<void> =>
       filter.tenantId = req.query['tenantId'];
     }
     if (status) filter['status'] = status;
-    if (search) filter['name'] = { $regex: search, $options: 'i' };
+    if (designation) filter['designation'] = { $regex: designation, $options: 'i' };
+    if (gender) filter['gender'] = gender;
+    if (search) {
+      filter['$or'] = [
+        { name: { $regex: search, $options: 'i' } },
+        { designation: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { employeeId: { $regex: search, $options: 'i' } },
+      ];
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [teachers, total] = await Promise.all([

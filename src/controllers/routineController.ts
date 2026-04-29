@@ -5,15 +5,35 @@ import { sendSuccess, sendError } from '../utils/response';
 export const getRoutine = async (req: Request, res: Response): Promise<void> => {
   try {
     const { classId, sectionId, academicYear } = req.query as Record<string, string>;
-    const filter: Record<string, unknown> = { tenantId: req.tenantId };
-    if (classId) filter['classId'] = classId;
-    if (sectionId) filter['sectionId'] = sectionId;
-    if (academicYear) filter['academicYear'] = academicYear;
+    if (!classId) { sendSuccess(res, null, 'Routine fetched'); return; }
 
-    const routine = await Routine.findOne(filter)
-      .populate('classId', 'name')
-      .populate('schedule.periods.subjectId', 'name code')
-      .populate('schedule.periods.teacherId', 'name');
+    const base: Record<string, unknown> = { tenantId: req.tenantId, classId };
+
+    const populateAndFind = (filter: Record<string, unknown>) =>
+      Routine.findOne(filter)
+        .sort({ academicYear: -1 })
+        .populate('classId', 'name')
+        .populate('schedule.periods.subjectId', 'name code')
+        .populate('schedule.periods.teacherId', 'name');
+
+    // Fallback chain: most specific → least specific
+    // 1. Exact section + exact year
+    // 2. No section (class-wide) + exact year
+    // 3. Exact section + any year (most recent)
+    // 4. No section (class-wide) + any year (most recent)
+    const attempts: Record<string, unknown>[] = [];
+    if (sectionId && academicYear) attempts.push({ ...base, sectionId, academicYear });
+    if (academicYear)              attempts.push({ ...base, sectionId: '', academicYear });
+    if (sectionId)                 attempts.push({ ...base, sectionId });
+    attempts.push({ ...base, sectionId: '' });
+    attempts.push(base);
+
+    let routine = null;
+    for (const filter of attempts) {
+      routine = await populateAndFind(filter);
+      if (routine) break;
+    }
+
     sendSuccess(res, routine, 'Routine fetched');
   } catch (err) {
     sendError(res, 'Failed to fetch routine', 500, err);

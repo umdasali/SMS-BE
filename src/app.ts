@@ -19,6 +19,8 @@ import certificateRoutes from './routes/certificates';
 import dashboardRoutes from './routes/dashboard';
 import profileRoutes from './routes/profile';
 import financeRoutes from './routes/finance';
+import assetRoutes from './routes/assets';
+import announcementRoutes from './routes/announcements';
 import publicRoutes from './routes/public';
 
 const app = express();
@@ -80,6 +82,8 @@ app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/dashboard`, dashboardRoutes);
 app.use(`${API}/profile`, profileRoutes);
 app.use(`${API}/finance`, financeRoutes);
+app.use(`${API}/assets`, assetRoutes);
+app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/public`, publicRoutes);
 
 // 404
